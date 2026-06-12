@@ -512,22 +512,18 @@ function loadUserData(){
   USERS.forEach(u=>{
     try{const r=localStorage.getItem(kbKey(u));if(r)KB_ALL[u]=JSON.parse(r);}catch(e){KB_ALL[u]=[];}
   });
-  // Clear any incorrectly migrated data for non-Brian users
-  if(currentUser!=='Brian'&&!localStorage.getItem('fcrm-cleared-'+currentUser)){
-    const myData=localStorage.getItem(ppKey());
-    if(myData){
-      try{
+  // Clear incorrectly migrated data for non-Brian users
+  if(currentUser!=='Brian'&&!localStorage.getItem('fcrm-cleared-v2-'+currentUser)){
+    try{
+      const myData=localStorage.getItem(ppKey());
+      if(myData){
         const data=JSON.parse(myData);
-        // If this user has prospects that belong to Brian, clear them
-        const wrongData=data.filter(p=>!p.rep||p.rep==='Brian');
-        if(wrongData.length>0){
-          const correct=data.filter(p=>p.rep===currentUser);
-          PP=correct;
-          savePP();
-        }
-      }catch(e){}
-    }
-    localStorage.setItem('fcrm-cleared-'+currentUser,'1');
+        const correct=data.filter(p=>p.rep===currentUser);
+        PP=correct;
+        savePP();
+      }
+    }catch(e){}
+    localStorage.setItem('fcrm-cleared-v2-'+currentUser,'1');
   }
   // One-time migration from old storage keys — Brian's data only
   if(!localStorage.getItem('fcrm-migrated-v3')&&currentUser==='Brian'){
