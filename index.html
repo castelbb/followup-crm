@@ -209,6 +209,15 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
 .granola-desc{font-size:12px;color:#6b7280;line-height:1.6;}
 .granola-example{background:#F8F7F4;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;font-size:12px;color:#374151;font-style:italic;margin-top:6px;line-height:1.6;}
 
+/* Style training */
+.style-email-card{border:2px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .15s;background:#fff;}
+.style-email-card:hover{border-color:#7F77DD;background:#FAFAFE;}
+.style-email-card.selected{border-color:#7F77DD;background:#EEEDFE;}
+.style-email-subject{font-size:12px;font-weight:600;color:#1a1a2e;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #f3f4f6;}
+.style-email-body{font-size:12px;color:#374151;line-height:1.7;white-space:pre-wrap;}
+.style-saved{background:#F8F7F4;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6b7280;position:relative;}
+.style-saved-num{font-size:10px;font-weight:600;color:#7F77DD;margin-bottom:4px;}
+
 @media(max-width:768px){
   .app{grid-template-columns:1fr;}
   .sidebar{position:relative;width:100%;height:auto;}
@@ -441,6 +450,36 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
         <p style="font-size:13px;color:#6b7280;margin-bottom:12px;">Reset your prospect data. Knowledge base is shared and cannot be reset individually.</p>
         <button class="btn btn-red" onclick="resetMyData()">Reset my prospects</button>
       </div>
+
+      <div class="card" id="style-training-card">
+        <span class="section-label">&#127775; My style — train your tone</span>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.6;">Paste a call note below. The app generates 2 email options — click the one closest to how you'd write it. Do this 3-5 times and your personal style gets locked in.</p>
+
+        <textarea id="style-notes" style="height:120px;margin-bottom:12px;" placeholder="Paste a call note here..."></textarea>
+        <button class="btn btn-primary" id="style-gen-btn" onclick="generateStyleOptions()" style="margin-bottom:16px;">Generate 2 options</button>
+
+        <div id="style-options" style="display:none;">
+          <span class="section-label">Click the email that feels most like you:</span>
+          <div id="style-opt-1" class="style-email-card" onclick="selectStyle(0)">
+            <div class="style-email-subject" id="style-subj-1"></div>
+            <div class="style-email-body" id="style-body-1"></div>
+          </div>
+          <div id="style-opt-2" class="style-email-card" onclick="selectStyle(1)">
+            <div class="style-email-subject" id="style-subj-2"></div>
+            <div class="style-email-body" id="style-body-2"></div>
+          </div>
+          <div style="text-align:center;margin-top:10px;">
+            <button class="btn" id="style-more-btn" onclick="generateMoreStyleOptions()" style="font-size:12px;">None of these — show 2 more</button>
+          </div>
+          <div id="style-custom" style="display:none;margin-top:12px;">
+            <span class="section-label">Write your own direction</span>
+            <textarea id="style-custom-prompt" style="height:60px;margin-bottom:8px;" placeholder="e.g. I prefer to open with a question. Keep it under 80 words. Don't mention the product name directly..."></textarea>
+            <button class="btn btn-primary" onclick="generateCustomStyle()">Generate from my direction</button>
+          </div>
+        </div>
+
+        <div id="style-saved-examples" style="margin-top:16px;"></div>
+      </div>
     </div>
 
   </div>
@@ -468,6 +507,81 @@ function loadUserData(){
   USERS.forEach(u=>{
     try{const r=localStorage.getItem(kbKey(u));if(r)KB_ALL[u]=JSON.parse(r);}catch(e){KB_ALL[u]=[];}
   });
+  // One-time migration from old storage keys
+  if(!localStorage.getItem('fcrm-migrated-v3')){
+    const oldKeys=['fcrm-p-v1','fcrm-prospects-v1','crm-beta-v3-p','crm-v3-p','crm-v2-prospects','solo-kb-v2','followup-crm-MASTER'];
+    const oldKBKeys=['fcrm-k-v1','fcrm-kb-v1','crm-beta-v3-k','crm-v3-k','crm-v2-kb','followup-kb-MASTER'];
+    const seen=new Set(PP.map(x=>x.id));
+    oldKeys.forEach(k=>{
+      try{
+        const r=localStorage.getItem(k);
+        if(r){
+          const data=JSON.parse(r);
+          if(Array.isArray(data)){
+            data.forEach(p=>{
+              if(!seen.has(p.id)){
+                // migrate old prospect format to new
+                const mp={
+                  id:p.id||Date.now().toString(),
+                  rep:currentUser,
+                  contactName:p.contactName||p.prospect||'Unknown',
+                  company:p.company||'Unknown',
+                  role:p.role||'',
+                  urgency:p.urgency||'medium',
+                  stage:p.stage||'',
+                  keyPain:p.keyPain||'',
+                  features:p.features||'',
+                  summaryMode:p.summaryMode||'sent',
+                  summaryEmail:p.summaryEmail||null,
+                  summarySent:p.summarySent||false,
+                  tone:p.tone||'Conversational',
+                  notes:p.notes||'',
+                  extraContext:p.extraContext||'',
+                  status:p.status||'Active',
+                  emails:(p.sequences||p.emails||[]).map((s,i)=>({
+                    num:s.num||i+1,
+                    subject:s.subject||'',
+                    body:s.body||'',
+                    sent:s.sent||s.copiedAt?true:false,
+                    replied:s.replied||false,
+                    replyNote:s.replyNote||'',
+                    emailNote:'',
+                    createdAt:s.createdAt||new Date().toISOString()
+                  })),
+                  createdAt:p.createdAt||new Date().toISOString(),
+                  lastActivity:p.lastActivity||new Date().toISOString()
+                };
+                PP.push(mp);
+                seen.add(mp.id);
+              }
+            });
+          }
+        }
+      }catch(e){}
+    });
+    // migrate KB entries
+    const seenKB=new Set((KB_ALL[currentUser]||[]).map(e=>e.date+'|'+e.company));
+    oldKBKeys.forEach(k=>{
+      try{
+        const r=localStorage.getItem(k);
+        if(r){
+          const data=JSON.parse(r);
+          if(Array.isArray(data)){
+            data.forEach(e=>{
+              const key=e.date+'|'+e.company;
+              if(!seenKB.has(key)){
+                KB_ALL[currentUser].push({...e,rep:currentUser});
+                seenKB.add(key);
+              }
+            });
+          }
+        }
+      }catch(e){}
+    });
+    if(PP.length>0){savePP();}
+    if(KB_ALL[currentUser].length>0){saveKB();}
+    localStorage.setItem('fcrm-migrated-v3','1');
+  }
 }
 function savePP(){localStorage.setItem(ppKey(),JSON.stringify(PP));}
 function saveKB(){localStorage.setItem(kbKey(currentUser),JSON.stringify(KB_ALL[currentUser]));}
@@ -538,6 +652,7 @@ function showPage(p){
   if(p==='kb')renderKB();
   if(p==='prospects')renderProspectsGrid();
   if(p==='prospect'&&cId)renderProspectDetail();
+  if(p==='settings')renderStyleExamples();
 }
 
 function setSm(m){sm=m;document.getElementById('opt-sent').classList.toggle('on',m==='sent');document.getElementById('opt-gen').classList.toggle('on',m==='generate');}
@@ -571,10 +686,128 @@ async function callClaude(messages,system){
   return data.content.map(c=>c.text||'').join('');
 }
 
+function styleKey(){return `fcrm-style-${currentUser}`;}
+function loadStyle(){try{const r=localStorage.getItem(styleKey());return r?JSON.parse(r):{examples:[],notes:''};}catch(e){return {examples:[],notes:''};}}
+function saveStyle(s){localStorage.setItem(styleKey(),JSON.stringify(s));}
+
+let styleOptions=[], styleTries=0;
+
+async function generateStyleOptions(){
+  const notes=document.getElementById('style-notes').value.trim();
+  if(!notes){alert('Paste a call note first.');return;}
+  const btn=document.getElementById('style-gen-btn');
+  btn.disabled=true;btn.innerHTML='<span class="spin spin-d"></span> Generating...';
+  styleTries=0;
+  await fetchStyleOptions(notes);
+  btn.disabled=false;btn.innerHTML='Generate 2 options';
+}
+
+async function generateMoreStyleOptions(){
+  styleTries++;
+  if(styleTries>=2){
+    document.getElementById('style-custom').style.display='block';
+    document.getElementById('style-more-btn').style.display='none';
+    return;
+  }
+  const notes=document.getElementById('style-notes').value.trim();
+  await fetchStyleOptions(notes,true);
+}
+
+async function fetchStyleOptions(notes,isMore=false){
+  const style=loadStyle();
+  const examplesCtx=style.examples.length?`\n\nEXISTING STYLE EXAMPLES FROM THIS REP:\n${style.examples.map((e,i)=>`Example ${i+1}:\nSubject: ${e.subject}\nBody: ${e.body}`).join('\n\n')}`:'';
+  try{
+    const prompt=`Generate 2 different email options for Email 1 for this prospect. Each option should have a distinctly different tone or angle — not just variations of the same approach.${isMore?' Make these noticeably different from typical options — try unexpected angles.':''}
+${examplesCtx}
+
+CALL NOTES:
+${notes}
+
+Return JSON: {"option1":{"subject":"...","body":"..."},"option2":{"subject":"...","body":"..."}}`;
+    const response=await callClaude([{role:'user',content:prompt}],SYSTEM);
+    const data=JSON.parse(response.replace(/```json|```/g,'').trim());
+    styleOptions=[data.option1,data.option2];
+    document.getElementById('style-subj-1').textContent=data.option1.subject;
+    document.getElementById('style-body-1').textContent=data.option1.body;
+    document.getElementById('style-subj-2').textContent=data.option2.subject;
+    document.getElementById('style-body-2').textContent=data.option2.body;
+    document.getElementById('style-opt-1').classList.remove('selected');
+    document.getElementById('style-opt-2').classList.remove('selected');
+    document.getElementById('style-options').style.display='block';
+    document.getElementById('style-more-btn').style.display='inline-flex';
+    document.getElementById('style-custom').style.display='none';
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function generateCustomStyle(){
+  const notes=document.getElementById('style-notes').value.trim();
+  const customPrompt=document.getElementById('style-custom-prompt').value.trim();
+  if(!customPrompt)return;
+  try{
+    const prompt=`Generate an email for Email 1 for this prospect, following this specific direction from the rep:
+"${customPrompt}"
+
+CALL NOTES:
+${notes}
+
+Return JSON: {"option1":{"subject":"...","body":"..."},"option2":{"subject":"...","body":"..."}}`;
+    const response=await callClaude([{role:'user',content:prompt}],SYSTEM);
+    const data=JSON.parse(response.replace(/```json|```/g,'').trim());
+    styleOptions=[data.option1,data.option2];
+    document.getElementById('style-subj-1').textContent=data.option1.subject;
+    document.getElementById('style-body-1').textContent=data.option1.body;
+    document.getElementById('style-subj-2').textContent=data.option2.subject;
+    document.getElementById('style-body-2').textContent=data.option2.body;
+    document.getElementById('style-opt-1').classList.remove('selected');
+    document.getElementById('style-opt-2').classList.remove('selected');
+    document.getElementById('style-custom').style.display='none';
+  }catch(e){alert('Error: '+e.message);}
+}
+
+function selectStyle(idx){
+  const selected=styleOptions[idx];
+  if(!selected)return;
+  document.getElementById('style-opt-1').classList.toggle('selected',idx===0);
+  document.getElementById('style-opt-2').classList.toggle('selected',idx===1);
+  const style=loadStyle();
+  style.examples.push(selected);
+  if(style.examples.length>10)style.examples=style.examples.slice(-10);
+  saveStyle(style);
+  setTimeout(()=>{
+    document.getElementById('style-options').style.display='none';
+    document.getElementById('style-notes').value='';
+    renderStyleExamples();
+    const saved=document.createElement('div');
+    saved.className='info info-green';
+    saved.style.marginTop='10px';
+    saved.textContent='&#10003; Style example saved! Paste another note to keep training.';
+    document.getElementById('style-training-card').appendChild(saved);
+    setTimeout(()=>saved.remove(),3000);
+  },600);
+}
+
+function renderStyleExamples(){
+  const style=loadStyle();
+  const el=document.getElementById('style-saved-examples');
+  if(!style.examples.length){el.innerHTML='';return;}
+  el.innerHTML=`<span class="section-label">${style.examples.length} style example${style.examples.length===1?'':'s'} saved</span>`
+    +style.examples.map((e,i)=>`<div class="style-saved"><div class="style-saved-num">Example ${i+1}</div><div style="font-weight:600;margin-bottom:3px;">${e.subject}</div><div style="white-space:pre-wrap;">${e.body.substring(0,100)}...</div></div>`).join('')
+    +`<button class="btn btn-red" style="font-size:11px;margin-top:8px;" onclick="clearStyle()">Clear my style examples</button>`;
+}
+
+function clearStyle(){
+  if(!confirm('Clear all your style examples?'))return;
+  saveStyle({examples:[],notes:''});
+  renderStyleExamples();
+}
+
 function buildKBContext(){
   const all=allKB();
-  if(!all.length)return '';
-  return '\n\nTEAM CALL PATTERNS ('+all.length+' calls across all reps):\n'+all.slice(-20).map(e=>`Pain: ${e.pain} | Features: ${e.features} | Stage: ${e.stage} | Urgency: ${e.urgency}`).join('\n');
+  const style=loadStyle();
+  let ctx='';
+  if(all.length)ctx+='\n\nTEAM CALL PATTERNS ('+all.length+' calls across all reps):\n'+all.slice(-20).map(e=>`Pain: ${e.pain} | Features: ${e.features} | Stage: ${e.stage} | Urgency: ${e.urgency}`).join('\n');
+  if(style.examples.length)ctx+='\n\nTHIS REP\'S STYLE EXAMPLES (write emails that match this voice):\n'+style.examples.slice(-5).map((e,i)=>`Example ${i+1}:\nSubject: ${e.subject}\nBody: ${e.body}`).join('\n\n');
+  return ctx;
 }
 
 const SYSTEM=`You are a specialist sales follow-up assistant for an Account Executive at Sage Expense Management (formerly Fyle — fylehq.com).
@@ -621,41 +854,101 @@ Pain → what resonates:
 - Manual Excel breaking down → automation, real-time visibility
 - Contract expiring → onboarding timeline, clean transition window
 - New hire brought in to fix problem → highly motivated champion, support them
+- No hard deadline → create urgency through cost of delay, not manufactured scarcity
 
 Industry angles:
 - Construction: job codes, cost codes, PM time savings
-- Private equity/CFOs: reliability, clean workflow, formal tone
+- Private equity/CFOs: reliability, clean workflow — both warm and sharp tones work
 - Nonprofits: cost sensitivity, simple workflow, 501c3 discount
 - Auto dealerships/field teams: SMS is the hook, drivers don't need apps
 - Film/production: Amex reliability, project tracking, human support
 - Real estate: multiple entities, dual accounting systems
+- Aviation/large field teams: volume of transactions, cost of manual processing per month
 
 Champion dynamics:
 - Owner not on call → expect delay, champion sells internally
-- New hire as champion → highly motivated, strike while fresh
+- New hire as champion → highly motivated, support them but never assume how long they've been there
 - External CPA involved → needs to sign off on integration
 - Multiple partners/board → slower cycle
+- No reference calls unless it's a significantly large deal
+
+## THE REP'S EMAIL STYLE — TRAINED AND LOCKED
+
+This is how the rep writes. Match this style precisely.
+
+SEQUENCE ARC:
+- Emails 1-4: Warm and consultative. Relationship first, solution second.
+- Emails 5-8: Progressive directness. More confident, sharper observations, flip the script.
+- Emails 9-12: Closing loop. Warm wind-down, different angle each time, never desperate.
+
+EMAIL 1 — Always warm check-in:
+- Acknowledge the person first — "Hoping you had a chance to..."
+- Reference something specific from the call — a person, a situation, a moment
+- Explain the solution simply without overselling
+- Close with an offer, not a demand
+- Example: "Hoping you and Susan had a chance to connect after the demo. The drivers piece is what stood out to me — three hours out, receipt in hand, and by the time month-end rolls around it's gone. The SMS flow fixes that at the source. No app, no login, just a text at the pump. Would love to hear how Susan is thinking about it. Happy to jump on a quick call with both of you whenever works."
+
+EMAIL 2 — No response: Observation led, reframe the problem:
+- Open with a broader insight about their world
+- More confident, less asking
+- Paint a picture of what better looks like
+- Close with a direct question
+- Example: "Field teams and receipts are a losing battle when the gap between the purchase and the submission is weeks long. What changes that is the notification hitting the driver's phone the moment the card swipes — receipt in, coded, done before they pull out of the parking lot. Where are you and Susan on it?"
+
+EMAIL 3 — Still no response: Warm, ask for timeline:
+- Acknowledge no rush
+- Ask gently for a timeline — never demand one
+- "Is there a timeline you're working towards on this?" — soft, not pushy
+
+EMAIL 4 — Warm, offer support:
+- Keep it light, offer help
+- "Still here if you need anything — whatever makes the evaluation easier, just say the word."
+
+EMAILS 5-8 — Progressive directness:
+- Email 5: Competitive or industry angle — what others like them do
+- Email 6: Simplify the decision or address the internal champion's specific role
+- Email 7: Flip the script — "I'll be honest, when I don't hear back it's usually one of three things..."
+- Email 8: Warm wind-down — "Last one for this stretch..."
+
+EMAILS 9-12 — Closing loop:
+- Email 9: Ask for better timing — "Is there a better time to revisit this?"
+- Email 10: Short and simple — "If this isn't the right time, a simple reply saves us both some inbox space."
+- Email 11: "These things usually come back around when the timing is right. I'll be here when that happens."
+- Email 12: Warm final close — "Last one from me for now. These things move at their own pace and that's completely fine. If the timing ever shifts, just reply here and we'll pick up where we left off."
+
+URGENCY WITHOUT A HARD DEADLINE:
+- Use cost of delay: "Every month this runs manually is another month of [specific person] inheriting a problem that didn't need to exist"
+- Use volume: "1,500 transactions a month processed manually is a lot to absorb while you wait"
+- Use timeline math: "10-15 day onboarding sounds short until it's November and the holiday schedule kicks in"
+- Never manufacture urgency with fake deadlines
+- Ask a question that makes them think: "Is there a reason the timeline has to be end of year specifically?"
 
 ## EMAIL RULES — NON-NEGOTIABLE
 
 Structure — every email:
-1. Open with the prospect's specific world — a sharp observation. Never "Hope you're well" or "Following up."
-2. One focused middle paragraph — single creative angle on why now or why Sage fits their specific pain.
-3. One clean close — single low-pressure ask. Never more than one sentence.
+1. Open with the prospect's specific world. Never "Hope you're well", never "Following up", never "Thanks for your time."
+2. One focused middle paragraph — single creative angle tied directly to their pain.
+3. One clean close — single low-pressure ask or open door. Never more than one sentence.
 
-Length: 150 words maximum.
+Length: 150 words maximum. Every word must earn its place.
 
-Tone rules:
-- NEVER open with thanks or any grateful opener
-- NEVER use theatrical language ("really stuck with me", "I keep thinking about")
-- NEVER re-explain features or concerns from the demo
-- NEVER use bullet points
-- Be direct and confident — solving a real problem, not asking a favour
-- Sound like a confident peer checking in, not a salesperson
+Style rules:
+- Warm first, direct later — never the other way around
+- Always specific — reference their exact situation, people, numbers
+- Never assume internal details not confirmed in the notes (don't reference how long someone has been in their role unless explicitly stated)
+- Questions over statements for closes — "Where are you on it?" not "Let me know"
+- Never taunt or make prospects feel stupid about their current process
+- No reference calls unless it's a significantly large deal
+- No bullet points
+- No theatrical language
+- No corporate speak
+- Progressive directness — gets more confident as the sequence goes on
+- Closing emails are warm, never desperate
 
-Timing: assume the number of days specified have passed since the demo. Reflect this naturally.
+Sign off: as the rep's name. Default to Brian unless told otherwise.
 
-Sign off: always as Brian (or the rep's name if specified).
+## STYLE EXAMPLES FROM REP'S TRAINING
+When the rep's style profile is provided, inject those examples as additional context before generating.
 
 ## OUTPUT FORMATS (return ONLY raw JSON, no markdown, no backticks)
 
@@ -664,6 +957,9 @@ New prospect:
 
 Email only:
 {"subject":"subject line","body":"email body — max 150 words"}
+
+Two email options (for style training):
+{"option1":{"subject":"subject 1","body":"body 1"},"option2":{"subject":"subject 2","body":"body 2"}}
 
 Subject alternatives:
 {"alternatives":["subject 1","subject 2","subject 3"]}`;
