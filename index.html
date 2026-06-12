@@ -399,7 +399,11 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
       </div>
 
       <div class="card">
-        <span class="section-label">&#127803; Granola note guide</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleGranola()">
+          <span class="section-label" style="margin-bottom:0;">&#127803; Granola note guide</span>
+          <span id="granola-toggle" style="font-size:12px;color:#6b7280;">Show &#9660;</span>
+        </div>
+        <div id="granola-content" style="display:none;margin-top:14px;">
         <p style="font-size:13px;color:#6b7280;margin-bottom:16px;line-height:1.6;">Use these headings in Granola for the best email results. The more detail you add under each, the more personalised your emails will be.</p>
 
         <div class="granola-section">
@@ -442,6 +446,7 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
           <div class="granola-heading">## Next steps agreed</div>
           <div class="granola-desc">Word for word what was agreed at the end of the call — who does what by when.</div>
           <div class="granola-example">"Brian to send pricing summary. Jane to check Expensify contract terms and confirm with partners. Follow up in 1 week."</div>
+        </div>
         </div>
       </div>
 
@@ -507,8 +512,25 @@ function loadUserData(){
   USERS.forEach(u=>{
     try{const r=localStorage.getItem(kbKey(u));if(r)KB_ALL[u]=JSON.parse(r);}catch(e){KB_ALL[u]=[];}
   });
-  // One-time migration from old storage keys
-  if(!localStorage.getItem('fcrm-migrated-v3')){
+  // Clear any incorrectly migrated data for non-Brian users
+  if(currentUser!=='Brian'&&!localStorage.getItem('fcrm-cleared-'+currentUser)){
+    const myData=localStorage.getItem(ppKey());
+    if(myData){
+      try{
+        const data=JSON.parse(myData);
+        // If this user has prospects that belong to Brian, clear them
+        const wrongData=data.filter(p=>!p.rep||p.rep==='Brian');
+        if(wrongData.length>0){
+          const correct=data.filter(p=>p.rep===currentUser);
+          PP=correct;
+          savePP();
+        }
+      }catch(e){}
+    }
+    localStorage.setItem('fcrm-cleared-'+currentUser,'1');
+  }
+  // One-time migration from old storage keys — Brian's data only
+  if(!localStorage.getItem('fcrm-migrated-v3')&&currentUser==='Brian'){
     const oldKeys=['fcrm-p-v1','fcrm-prospects-v1','crm-beta-v3-p','crm-v3-p','crm-v2-prospects','solo-kb-v2','followup-crm-MASTER'];
     const oldKBKeys=['fcrm-k-v1','fcrm-kb-v1','crm-beta-v3-k','crm-v3-k','crm-v2-kb','followup-kb-MASTER'];
     const seen=new Set(PP.map(x=>x.id));
@@ -1368,25 +1390,3 @@ function renderKB(){
     <div class="card" style="margin-bottom:0;"><span class="section-label">Top pain points</span><div class="tags">${tP.map(([p,c])=>`<span class="tag">${p} <b style="color:#1a1a2e">${c}</b></span>`).join('')||'None yet'}</div></div>
     <div class="card" style="margin-bottom:0;"><span class="section-label">Features resonating</span><div class="tags">${tF.map(([f,c])=>`<span class="tag">${f} <b style="color:#1a1a2e">${c}</b></span>`).join('')||'None yet'}</div></div>
   </div>
-  <div class="card"><span class="section-label">Recent calls — all reps</span>
-    <div style="max-height:220px;overflow-y:auto;">${all.slice().reverse().map(e=>`<div class="kb-row"><div style="width:20px;height:20px;border-radius:50%;background:${USER_COLORS[e.rep]||'#9ca3af'};color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${(e.rep||'?')[0]}</div><span style="flex:1;color:#374151;">${e.company||'—'} &middot; ${e.pain||'—'}</span>${e.repliedEmail?`<span style="color:#0F6E56;font-weight:500;">Replied Email ${e.repliedEmail}</span>`:''}<span style="color:#9ca3af;">${new Date(e.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span></div>`).join('')}</div>
-  </div>`;
-}
-
-function updateBadges(){
-  const pb=document.getElementById('prospect-badge');
-  pb.textContent=PP.length;pb.style.display=PP.length?'inline':'none';
-  const kb=document.getElementById('kb-badge');
-  const total=allKB().length;
-  kb.textContent=total;kb.style.display=total?'inline':'none';
-}
-
-function resetMyData(){
-  if(!confirm('Reset all your prospects? This cannot be undone.'))return;
-  PP=[];savePP();cId=null;updateBadges();renderSidebar();renderProspectsGrid();showPage('prospects');
-}
-
-init();
-</script>
-</body>
-</html>
