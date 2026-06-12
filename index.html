@@ -218,6 +218,20 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
 .style-saved{background:#F8F7F4;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6b7280;position:relative;}
 .style-saved-num{font-size:10px;font-weight:600;color:#7F77DD;margin-bottom:4px;}
 
+/* Context chips */
+.ctx-chip{padding:6px 12px;border:1px solid #e5e7eb;border-radius:20px;background:#fff;cursor:pointer;font-size:12px;color:#374151;font-family:inherit;transition:all .15s;}
+.ctx-chip:hover{border-color:#7F77DD;background:#EEEDFE;color:#3C3489;}
+.ctx-chip.on{border-color:#7F77DD;background:#7F77DD;color:#fff;font-weight:500;}
+
+/* Prospect summary */
+.prospect-summary{background:linear-gradient(135deg,#F8F7FF,#F0F4FF);border:1px solid #DDDAF5;border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.7;}
+.prospect-summary-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#7F77DD;margin-bottom:6px;display:block;}
+
+/* Next email chips */
+.next-chip{padding:5px 11px;border:1px solid #7F77DD33;border-radius:20px;background:#fff;cursor:pointer;font-size:11px;color:#534AB7;font-family:inherit;transition:all .15s;margin-bottom:4px;}
+.next-chip:hover{background:#EEEDFE;}
+.next-chip.on{background:#7F77DD;color:#fff;border-color:#7F77DD;}
+
 @media(max-width:768px){
   .app{grid-template-columns:1fr;}
   .sidebar{position:relative;width:100%;height:auto;}
@@ -367,6 +381,20 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
         </div>
       </div>
 
+      <!-- Context prompt -->
+      <div class="card" style="margin-top:12px;">
+        <span class="section-label">What's the focus for Email 1? <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(optional but makes it sharper)</span></span>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px;" id="ctx-shortcuts">
+          <button class="ctx-chip" onclick="setCtxChip(this,'Follow up on evaluation — check in after they had time to review')">&#128203; Follow up on evaluation</button>
+          <button class="ctx-chip" onclick="setCtxChip(this,'Focus on the internal champion angle — support them in selling this internally')">&#127775; Focus on the champion</button>
+          <button class="ctx-chip" onclick="setCtxChip(this,'Create urgency around the timeline or contract deadline without being pushy')">&#9889; Create urgency</button>
+          <button class="ctx-chip" onclick="setCtxChip(this,'Lead with the SMS and field team hook — no app, just a text at the point of purchase')">&#128241; Lead with SMS hook</button>
+          <button class="ctx-chip" onclick="setCtxChip(this,'Lead with integration reliability — direct card network vs broken OAuth feeds')">&#128268; Lead with integration angle</button>
+          <button class="ctx-chip" onclick="setCtxChip(this,'No hard deadline — create urgency through cost of delay, not manufactured scarcity')">&#128336; No hard deadline angle</button>
+        </div>
+        <textarea id="email1-ctx" style="height:55px;font-size:12px;" placeholder="Or write your own direction — e.g. mention the Susan angle, reference the Lightspeed integration, keep it under 80 words..."></textarea>
+      </div>
+
       <div id="new-err" class="info info-red" style="display:none;margin-top:12px;"></div>
       <button class="btn btn-primary btn-full" id="gen-btn" onclick="generateEmail1()" style="margin-top:14px;">
         &#10024; Generate Email 1
@@ -447,6 +475,47 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
           <div class="granola-desc">Word for word what was agreed at the end of the call — who does what by when.</div>
           <div class="granola-example">"Brian to send pricing summary. Jane to check Expensify contract terms and confirm with partners. Follow up in 1 week."</div>
         </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleHowTo()">
+          <span class="section-label" style="margin-bottom:0;">&#128218; How to use FollowUp</span>
+          <span id="howto-toggle" style="font-size:12px;color:#6b7280;">Show &#9660;</span>
+        </div>
+        <div id="howto-content" style="display:none;margin-top:14px;">
+          <div class="granola-section">
+            <div class="granola-heading">&#128101; Selecting your profile</div>
+            <div class="granola-desc">When you open the app, select your name. Everything you add — prospects, emails, notes — is saved to your profile only. The knowledge base is shared across all reps so the AI learns from everyone's calls.</div>
+          </div>
+          <div class="granola-section">
+            <div class="granola-heading">&#43; Adding a new prospect</div>
+            <div class="granola-desc">Click New prospect. Paste your Granola call notes. Set how many days have passed since the demo. Choose a focus for Email 1 using the quick chips or write your own direction. Hit Generate Email 1 — the AI writes the email and creates a deal snapshot at the top of the prospect view.</div>
+          </div>
+          <div class="granola-section">
+            <div class="granola-heading">&#10024; Generating emails</div>
+            <div class="granola-desc">Open a prospect and scroll to the bottom. Choose what happened since your last email using the quick chips, or describe it in your own words. Hit Generate Email — each email is written knowing the full sequence history. Emails get progressively more direct as the sequence goes on.</div>
+          </div>
+          <div class="granola-section">
+            <div class="granola-heading">&#8635; Rewriting an email</div>
+            <div class="granola-desc">Open any email and click the ↺ icon. Tell it what you want changed — "make it shorter", "focus more on the Susan angle", "try a different opening". It rewrites just that email without touching the others.</div>
+          </div>
+          <div class="granola-section">
+            <div class="granola-heading">&#128161; Subject line alternatives</div>
+            <div class="granola-desc">Click the 💡 icon on any email to get 3 alternative subject lines. Click any one to swap it in instantly.</div>
+          </div>
+          <div class="granola-section">
+            <div class="granola-heading">&#128293; Health indicators</div>
+            <div class="granola-desc">Every prospect card shows Hot 🔥, Warm 🌡 or Cold ❄ based on days since last activity. Hot = active in the last 4 days or replied. Warm = 5-10 days. Cold = over 10 days with no reply.</div>
+          </div>
+          <div class="granola-section">
+            <div class="granola-heading">&#127775; Training your style</div>
+            <div class="granola-desc">Go to Settings → My Style. Paste a call note and the app generates 2 email options. Click the one closest to how you'd write it. Do this 3-5 times. Your style examples feed into every future email you generate — making it sound more like you over time.</div>
+          </div>
+          <div class="granola-section">
+            <div class="granola-heading">&#129504; Knowledge base</div>
+            <div class="granola-desc">The KB builds automatically from every prospect you add and every reply you log. It shows you top pain points across your pipeline, features that are resonating, and which email number gets the most replies. The AI reads all three reps' KB when generating emails.</div>
+          </div>
         </div>
       </div>
 
@@ -971,7 +1040,7 @@ When the rep's style profile is provided, inject those examples as additional co
 ## OUTPUT FORMATS (return ONLY raw JSON, no markdown, no backticks)
 
 New prospect:
-{"contactName":"first name","company":"company name","role":"role","urgency":"high|medium|low","stage":"short stage","keyPain":"core pain phrase","features":"comma-separated features","summaryEmail":null,"subject":"Email 1 subject","body":"Email 1 body — max 150 words"}
+{"contactName":"first name","company":"company name","role":"role","urgency":"high|medium|low","stage":"short stage","keyPain":"core pain phrase","features":"comma-separated features","summaryEmail":null,"summary":"3-4 sentence paragraph about this prospect — who they are, their world before Sage, what lit them up in the demo, and the key political context (who else is involved). Write it in plain language as if briefing a colleague before a call. No bullet points, no jargon.","subject":"Email 1 subject","body":"Email 1 body — max 150 words"}
 
 Email only:
 {"subject":"subject line","body":"email body — max 150 words"}
@@ -985,6 +1054,7 @@ Subject alternatives:
 async function generateEmail1(){
   const notes=document.getElementById('new-notes').value.trim();
   const ctx=document.getElementById('new-ctx').value.trim();
+  const emailCtx=document.getElementById('email1-ctx')?.value.trim()||'';
   const err=document.getElementById('new-err');
   if(!notes){err.textContent='Paste your call notes first.';err.style.display='block';return;}
   err.style.display='none';
@@ -992,16 +1062,18 @@ async function generateEmail1(){
   const tl=document.getElementById('new-tl').value.trim();
   const kbCtx=buildKBContext();
   const ctxB=ctx?`\n\nADDITIONAL CONTEXT:\n${ctx}`:'';
+  const emailCtxB=emailCtx?`\n\nEMAIL FOCUS / DIRECTION FOR EMAIL 1:\n${emailCtx}`:'';
   const btn=document.getElementById('gen-btn');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Generating Email 1...';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Generating...';
   try{
-    const prompt=`Generate Email 1 for this new prospect. Extract prospect details and write the first follow-up email.
+    const prompt=`Generate Email 1 for this new prospect. Extract prospect details, write a short prospect summary paragraph, and write Email 1.
 
 Days since demo: ${daysSince}
 Summary mode: ${sm}
 Tone: ${tone}
 ${tl?'Timeline: '+tl:''}
 ${ctxB}
+${emailCtxB}
 ${kbCtx}
 
 CALL NOTES:
@@ -1018,6 +1090,7 @@ ${notes}`;
       stage:data.stage||'',
       keyPain:data.keyPain||'',
       features:data.features||'',
+      summary:data.summary||'',
       summaryMode:sm,
       summaryEmail:data.summaryEmail||null,
       summarySent:false,
@@ -1031,7 +1104,11 @@ ${notes}`;
     };
     KB_ALL[currentUser].push({date:new Date().toISOString(),pain:np.keyPain,features:np.features,stage:np.stage,urgency:np.urgency,company:np.company,rep:currentUser});
     PP.unshift(np);savePP();saveKB();updateBadges();renderSidebar();
-    document.getElementById('new-notes').value='';document.getElementById('new-ctx').value='';document.getElementById('new-tl').value='';
+    document.getElementById('new-notes').value='';
+    document.getElementById('new-ctx').value='';
+    document.getElementById('new-tl').value='';
+    if(document.getElementById('email1-ctx'))document.getElementById('email1-ctx').value='';
+    document.querySelectorAll('.ctx-chip').forEach(c=>c.classList.remove('on'));
     cId=np.id;openEmail=0;
     showPage('prospect');renderProspectDetail();
   }catch(e){err.textContent='Error: '+e.message;err.style.display='block';}
@@ -1257,6 +1334,14 @@ function renderProspectDetail(){
 
   h+='</div>';
 
+  // Prospect summary paragraph
+  if(p.summary){
+    h+=`<div class="prospect-summary">
+      <span class="prospect-summary-label">&#128203; Deal snapshot</span>
+      ${p.summary}
+    </div>`;
+  }
+
   // Email thread
   h+='<div class="email-thread" style="margin-top:4px;">';
   S.forEach((e,i)=>{
@@ -1293,13 +1378,35 @@ function renderProspectDetail(){
   });
   h+='</div>';
 
-  // Next email section
+  // Next email section with context chips
+  const chips1_4=[
+    {label:'&#128203; Follow up on evaluation',val:'Follow up on evaluation — check in after they had time to review'},
+    {label:'&#127775; Champion angle',val:'Focus on the internal champion — support them in selling this internally'},
+    {label:'&#9889; Create urgency',val:'Create urgency around the timeline without being pushy'},
+    {label:'&#128241; SMS hook',val:'Lead with the SMS field team hook — no app, just a text at purchase'},
+    {label:'&#128268; Integration angle',val:'Lead with integration reliability — direct network vs broken OAuth'},
+  ];
+  const chips5_8=[
+    {label:'&#128483; No response',val:'No response yet — try a fresh angle, more direct'},
+    {label:'&#127942; Industry peers',val:'Reference what similar companies in their industry do'},
+    {label:'&#9999; Flip the script',val:'Flip the script — ask directly what stalled the decision'},
+    {label:'&#128269; Simplify decision',val:'Simplify the decision — bring it down to one key question'},
+    {label:'&#128200; Cost of delay',val:'Focus on the cost of waiting — quantify the manual work piling up'},
+  ];
+  const chips9_12=[
+    {label:'&#128336; Ask for timing',val:'Ask for a better time to reconnect — next quarter, new cycle'},
+    {label:'&#128679; Something shifted?',val:'Check if anything has shifted internally before stopping follow-up'},
+    {label:'&#128682; Closing the loop',val:'Closing the loop warmly — leave the door open without desperation'},
+  ];
+  const chips=nextNum<=4?chips1_4:nextNum<=8?chips5_8:chips9_12;
+
   h+=`<div class="next-card">
     <div style="font-size:14px;font-weight:600;color:#1a1a2e;margin-bottom:4px;">&#10024; Ready for Email ${nextNum}?</div>
     <div style="font-size:12px;color:#534AB7;margin-bottom:12px;">${S.length} email${S.length===1?'':'s'} in sequence so far</div>
     <div class="what-happened">
-      <span class="section-label">What happened since the last email? <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(optional but makes Email ${nextNum} smarter)</span></span>
-      <textarea id="what-happened-inp" style="height:55px;font-size:12px;background:#fff;" placeholder="e.g. No response. She opened it twice. He replied saying budget is tight. Left a voicemail..." onchange="whatHappened=this.value" oninput="whatHappened=this.value">${whatHappened}</textarea>
+      <span class="section-label">What happened since the last email? <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af;">(makes Email ${nextNum} smarter)</span></span>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">${chips.map(c=>`<button class="next-chip" onclick="setNextChip(this,'${c.val.replace(/'/g,"\\'")}')">${c.label}</button>`).join('')}</div>
+      <textarea id="what-happened-inp" style="height:50px;font-size:12px;background:#fff;" placeholder="Or describe what happened — no response, she replied saying budget is tight, left a voicemail..." onchange="whatHappened=this.value" oninput="whatHappened=this.value">${whatHappened}</textarea>
     </div>
     <button id="next-email-btn" class="btn btn-purple" onclick="whatHappened=document.getElementById('what-happened-inp')?.value||'';generateNextEmail('${p.id}')">&#10024; Generate Email ${nextNum}</button>
   </div>`;
@@ -1405,6 +1512,38 @@ function toggleGranola(){
   const isOpen=content.style.display!=='none';
   content.style.display=isOpen?'none':'block';
   toggle.innerHTML=isOpen?'Show &#9660;':'Hide &#9650;';
+}
+
+function toggleHowTo(){
+  const content=document.getElementById('howto-content');
+  const toggle=document.getElementById('howto-toggle');
+  const isOpen=content.style.display!=='none';
+  content.style.display=isOpen?'none':'block';
+  toggle.innerHTML=isOpen?'Show &#9660;':'Hide &#9650;';
+}
+
+function setCtxChip(btn,text){
+  const wasOn=btn.classList.contains('on');
+  document.querySelectorAll('.ctx-chip').forEach(c=>c.classList.remove('on'));
+  if(!wasOn){
+    btn.classList.add('on');
+    document.getElementById('email1-ctx').value=text;
+  } else {
+    document.getElementById('email1-ctx').value='';
+  }
+}
+
+function setNextChip(btn,text){
+  const wasOn=btn.classList.contains('on');
+  document.querySelectorAll('.next-chip').forEach(c=>c.classList.remove('on'));
+  if(!wasOn){
+    btn.classList.add('on');
+    whatHappened=text;
+    document.getElementById('what-happened-inp').value=text;
+  } else {
+    whatHappened='';
+    document.getElementById('what-happened-inp').value='';
+  }
 }
 
 function resetMyData(){
