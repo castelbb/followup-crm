@@ -303,15 +303,22 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
     </div>
     <div class="sidebar-nav">
       <button class="nav-btn active" id="nb-prospects" onclick="showPage('prospects')">
-        <span class="icon">&#128101;</span> Prospects
-        <span class="badge" id="prospect-badge" style="display:none">0</span>
+        &#128101; Prospects
+        <span class="nbadge" id="prospect-badge" style="display:none">0</span>
+      </button>
+      <button class="nav-btn" id="nb-due" onclick="showPage('due')">
+        &#9201; Due today
+        <span class="due-badge" id="due-badge" style="display:none">0</span>
       </button>
       <button class="nav-btn" id="nb-new" onclick="showPage('new')">
-        <span class="icon">&#43;</span> New prospect
+        &#43; New prospect
+      </button>
+      <button class="nav-btn" id="nb-analytics" onclick="showPage('analytics')">
+        &#128200; Analytics
       </button>
       <button class="nav-btn" id="nb-kb" onclick="showPage('kb')">
-        <span class="icon">&#129504;</span> Knowledge base
-        <span class="badge" id="kb-badge" style="display:none">0</span>
+        &#129504; Knowledge base
+        <span class="nbadge" id="kb-badge" style="display:none">0</span>
       </button>
       <div class="nav-label">My deals</div>
       <div id="sidebar-prospects"></div>
@@ -325,12 +332,45 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
 
   <div class="main">
   <div class="main-inner">
+    <div id="export-reminder-bar"></div>
+
+    <!-- Onboarding screen overlay -->
+    <div id="onboard-screen" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#F8F7F4;z-index:999;align-items:center;justify-content:center;">
+      <div style="max-width:500px;width:100%;padding:40px 20px;text-align:center;">
+        <div style="display:flex;justify-content:center;gap:8px;margin-bottom:32px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:#e5e7eb;transition:all .3s;" id="os1"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:#e5e7eb;" id="os2"></div>
+          <div style="width:8px;height:8px;border-radius:50%;background:#e5e7eb;" id="os3"></div>
+        </div>
+        <div style="background:#fff;border-radius:16px;padding:36px;box-shadow:0 4px 24px rgba(0,0,0,.06);">
+          <div style="font-size:48px;margin-bottom:16px;" id="ob-icon">&#128640;</div>
+          <div style="font-size:22px;font-weight:700;color:#1a1a2e;margin-bottom:8px;" id="ob-title">Welcome to FollowUp</div>
+          <div style="font-size:14px;color:#6b7280;line-height:1.7;margin-bottom:20px;" id="ob-desc">The AI-powered follow-up tool for Sage Expense Management AEs.</div>
+          <div style="background:#EEEDFE;border-radius:10px;padding:12px 16px;font-size:13px;color:#3C3489;margin-bottom:24px;text-align:left;line-height:1.6;" id="ob-tip">&#128161; How it works.</div>
+          <button class="btn btn-primary btn-full" onclick="nextOnboard()">Next &rarr;</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Prospects page -->
     <div class="page active" id="page-prospects">
       <div class="page-title" id="prospects-title">Prospects</div>
       <div class="page-sub">Your active follow-up pipeline.</div>
       <div id="prospects-grid"></div>
+    </div>
+
+    <!-- Due today page -->
+    <div class="page" id="page-due">
+      <div class="page-title">&#9201; Due today</div>
+      <div class="page-sub">Prospects where the next email is due based on your 3-day cadence.</div>
+      <div id="due-content"></div>
+    </div>
+
+    <!-- Analytics page -->
+    <div class="page" id="page-analytics">
+      <div class="page-title">&#128200; Pipeline analytics</div>
+      <div class="page-sub">Your personal performance data. Builds as you log replies.</div>
+      <div id="analytics-content"></div>
     </div>
 
     <!-- New prospect page -->
@@ -372,6 +412,7 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
             <button class="tone-btn on" onclick="setTone(this,'Conversational')">Conversational</button>
             <button class="tone-btn" onclick="setTone(this,'Formal')">Formal</button>
             <button class="tone-btn" onclick="setTone(this,'Direct')">Direct</button>
+            <button class="tone-btn" onclick="setTone(this,'Brevity')">&#9889; Brevity (75 words)</button>
           </div>
         </div>
         <div class="card" style="margin-bottom:0;">
@@ -690,17 +731,10 @@ function allKB(){return [...(KB_ALL.Brian||[]),...(KB_ALL.Aditya||[]),...(KB_ALL
 
 function init(){
   const key=getKey();
-  if(!key){
-    document.getElementById('setup-screen').style.display='flex';
-    return;
-  }
+  if(!key){document.getElementById('setup-screen').style.display='flex';return;}
   const saved=localStorage.getItem('fcrm-current-user');
-  if(saved&&USERS.includes(saved)){
-    currentUser=saved;
-    startApp();
-  } else {
-    document.getElementById('profile-screen').style.display='flex';
-  }
+  if(saved&&USERS.includes(saved)){currentUser=saved;checkOnboarding();}
+  else{document.getElementById('profile-screen').style.display='flex';}
 }
 
 function saveSetupKey(){
@@ -712,15 +746,13 @@ function saveSetupKey(){
 }
 
 function selectProfile(user){
-  currentUser=user;
-  localStorage.setItem('fcrm-current-user',user);
+  currentUser=user;localStorage.setItem('fcrm-current-user',user);
   document.getElementById('profile-screen').style.display='none';
-  startApp();
+  checkOnboarding();
 }
 
 function switchProfile(){
-  currentUser=null;
-  localStorage.removeItem('fcrm-current-user');
+  currentUser=null;localStorage.removeItem('fcrm-current-user');
   document.getElementById('app').style.display='none';
   document.getElementById('profile-screen').style.display='flex';
 }
@@ -728,11 +760,11 @@ function switchProfile(){
 function startApp(){
   loadUserData();
   document.getElementById('app').style.display='grid';
-  document.getElementById('sidebar-av').textContent=currentUser[0];
-  document.getElementById('sidebar-av').style.background=USER_COLORS[currentUser]||'#7F77DD';
-  document.getElementById('sidebar-name').textContent=currentUser;
-  document.getElementById('prospects-title').textContent=currentUser+"'s Prospects";
-  updateBadges();renderSidebar();renderProspectsGrid();
+  const av=document.getElementById('sidebar-av');if(av){av.textContent=currentUser[0];av.style.background=USER_COLORS[currentUser]||'#7F77DD';}
+  const ub=document.getElementById('user-badge');if(ub)ub.style.background='rgba('+hexToRgb(USER_COLORS[currentUser]||'#7F77DD')+',0.2)';
+  const sn=document.getElementById('sidebar-name');if(sn)sn.textContent=currentUser;
+  const pt=document.getElementById('prospects-title');if(pt)pt.textContent=currentUser+"'s Prospects";
+  updateBadges();renderSidebar();renderProspectsGrid();checkExportReminder();
 }
 
 function saveApiKey(){
@@ -746,12 +778,13 @@ function saveApiKey(){
 function showPage(p){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
-  document.getElementById('page-'+p).classList.add('active');
-  const nb=document.getElementById('nb-'+p);
-  if(nb)nb.classList.add('active');
+  const page=document.getElementById('page-'+p);if(page)page.classList.add('active');
+  const nb=document.getElementById('nb-'+p);if(nb)nb.classList.add('active');
   if(p==='kb')renderKB();
   if(p==='prospects')renderProspectsGrid();
   if(p==='prospect'&&cId)renderProspectDetail();
+  if(p==='analytics')renderAnalytics();
+  if(p==='due')renderDue();
   if(p==='settings')renderStyleExamples();
 }
 
@@ -1512,11 +1545,10 @@ function renderKB(){
 }
 
 function updateBadges(){
-  const pb=document.getElementById('prospect-badge');
-  pb.textContent=PP.length;pb.style.display=PP.length?'inline':'none';
-  const kb=document.getElementById('kb-badge');
-  const total=allKB().length;
-  kb.textContent=total;kb.style.display=total?'inline':'none';
+  const pb=document.getElementById('prospect-badge');if(pb){pb.textContent=PP.length;pb.style.display=PP.length?'inline':'none';}
+  const kb=document.getElementById('kb-badge');const total=allKB().length;if(kb){kb.textContent=total;kb.style.display=total?'inline':'none';}
+  const due=PP.filter(p=>isDueToday&&isDueToday(p)).length;
+  const db=document.getElementById('due-badge');if(db){db.textContent=due;db.style.display=due?'inline':'none';}
 }
 
 function toggleGranola(){
@@ -1617,6 +1649,293 @@ function importData(input){
 function resetMyData(){
   if(!confirm('Reset all your prospects? This cannot be undone.'))return;
   PP=[];savePP();cId=null;updateBadges();renderSidebar();renderProspectsGrid();showPage('prospects');
+}
+
+// Sprint 1 new functions
+let showObjHandler=false,showDealRoom=false,deletedProspect=null,deleteTimer=null,onboardStep=1;
+
+function hexToRgb(hex){return`${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;}
+
+function checkOnboarding(){
+  if(!localStorage.getItem('fcrm-onboarded-'+currentUser)){
+    document.getElementById('onboard-screen').style.display='flex';
+    onboardStep=1;renderOnboard();
+  }else{startApp();}
+}
+
+const onboardData=[
+  {icon:'&#128640;',title:'Welcome to FollowUp',desc:'The AI-powered follow-up tool for Sage Expense Management AEs. Every email personalised from your actual call notes.',tip:'&#128161; <b>How it works:</b> Paste Granola notes &rarr; pick a focus &rarr; get Email 1 in seconds.'},
+  {icon:'&#127775;',title:'Train your style first',desc:'Go to Settings &rarr; My Style. Paste old call notes and pick emails that sound like you. The AI learns your voice.',tip:'&#9733; <b>Pro tip:</b> The more examples you add, the more emails will sound like you.'},
+  {icon:'&#9201;',title:'Stay on top of your pipeline',desc:'The Due Today tab shows which prospects need a follow-up based on your 3-day cadence. Open it every morning.',tip:'&#128293; Hot = active last 4 days. Warm = 5-10 days. Cold = over 10 days.'}
+];
+
+function renderOnboard(){
+  const d=onboardData[onboardStep-1];
+  document.getElementById('ob-icon').innerHTML=d.icon;
+  document.getElementById('ob-title').textContent=d.title;
+  document.getElementById('ob-desc').textContent=d.desc;
+  document.getElementById('ob-tip').innerHTML=d.tip;
+  [1,2,3].forEach(i=>{const el=document.getElementById('os'+i);if(el)el.classList.toggle('active',i===onboardStep);});
+  const btn=document.querySelector('#onboard-screen .btn-primary');
+  if(btn)btn.textContent=onboardStep===3?'Get started ✓':'Next →';
+}
+
+function nextOnboard(){
+  if(onboardStep<3){onboardStep++;renderOnboard();}
+  else{localStorage.setItem('fcrm-onboarded-'+currentUser,'1');document.getElementById('onboard-screen').style.display='none';startApp();}
+}
+
+function checkExportReminder(){
+  const last=localStorage.getItem('fcrm-last-export-'+currentUser);
+  const bar=document.getElementById('export-reminder-bar');
+  if(!bar)return;
+  if(!last&&PP.length>0){
+    bar.innerHTML=`<div style="background:#FAEEDA;border:1px solid #F5C842;border-radius:8px;padding:8px 14px;font-size:12px;color:#633806;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">&#9888; You haven't exported your data yet.<button class="btn" style="padding:4px 10px;font-size:11px;flex-shrink:0;" onclick="exportData()">Export now</button></div>`;
+    return;
+  }
+  if(last){
+    const days=Math.floor((Date.now()-new Date(last).getTime())/86400000);
+    if(days>=3){bar.innerHTML=`<div style="background:#FAEEDA;border:1px solid #F5C842;border-radius:8px;padding:8px 14px;font-size:12px;color:#633806;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">&#9888; Last exported ${days} days ago.<button class="btn" style="padding:4px 10px;font-size:11px;flex-shrink:0;" onclick="exportData()">Export now</button></div>`;return;}
+  }
+  bar.innerHTML='';
+}
+
+function getNextDueDate(p){
+  const emails=p.emails||[];
+  const lastSent=emails.filter(e=>e.sent&&e.sentAt).sort((a,b)=>new Date(b.sentAt)-new Date(a.sentAt))[0];
+  if(!lastSent)return new Date(new Date(p.createdAt).getTime()+7*86400000);
+  return new Date(new Date(lastSent.sentAt).getTime()+3*86400000);
+}
+
+function isDueToday(p){
+  if(['Replied','Closed won','Closed lost'].includes(p.status))return false;
+  return getNextDueDate(p)<=new Date();
+}
+
+function renderDue(){
+  const el=document.getElementById('due-content');
+  if(!el)return;
+  const due=PP.filter(p=>isDueToday(p));
+  if(!due.length){el.innerHTML='<div class="empty"><span class="empty-icon">&#9989;</span>All caught up!<br>No follow-ups due today.</div>';return;}
+  el.innerHTML=`<div class="info info-blue" style="margin-bottom:16px;">&#9201; <b>${due.length} prospect${due.length===1?'':'s'}</b> need a follow-up today.</div>`+
+  due.map(p=>{
+    const emails=p.emails||[];
+    const nextNum=emails.length+1;
+    const dueDate=getNextDueDate(p);
+    const overdue=dueDate<new Date(Date.now()-86400000);
+    return `<div style="background:#fff;border:1px solid ${overdue?'#F09595':'#e5e7eb'};border-radius:10px;padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="selProspect('${p.id}')">
+      <div style="width:40px;height:40px;border-radius:50%;background:${USER_COLORS[p.rep]||'#7F77DD'};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff;flex-shrink:0;">${p.contactName[0].toUpperCase()}${p.company[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:#1a1a2e;">${p.contactName} &middot; ${p.company}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px;">${p.keyPain}</div>
+        <div style="font-size:11px;color:${overdue?'#791F1F':'#7F77DD'};margin-top:4px;font-weight:500;">${overdue?'&#9888; Overdue':'&#9201; Due today'} &middot; Email ${nextNum} next &middot; ${emails.length} sent</div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:#7F77DD;">Open &#8594;</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAnalytics(){
+  const el=document.getElementById('analytics-content');
+  if(!el)return;
+  const kb=myKB();
+  const allEmails=PP.flatMap(p=>p.emails||[]);
+  const sent=allEmails.filter(e=>e.sent).length;
+  const replied=allEmails.filter(e=>e.replied).length;
+  const replyRate=sent>0?Math.round(replied/sent*100):0;
+  const byNum={};
+  allEmails.forEach(e=>{if(!byNum[e.num])byNum[e.num]={sent:0,replied:0};if(e.sent)byNum[e.num].sent++;if(e.replied)byNum[e.num].replied++;});
+  const maxNum=Math.max(...Object.keys(byNum).map(Number),1);
+  const numRows=Array.from({length:Math.min(maxNum,12)},(_,i)=>{const n=i+1;const d=byNum[n]||{sent:0,replied:0};return{num:n,sent:d.sent,replied:d.replied,rate:d.sent>0?Math.round(d.replied/d.sent*100):0};}).filter(r=>r.sent>0);
+  const replyTimes=kb.filter(e=>e.repliedEmail).map(e=>e.repliedEmail);
+  const avgReply=replyTimes.length?Math.round(replyTimes.reduce((a,b)=>a+b,0)/replyTimes.length*10)/10:null;
+  const SC2={'Active':'#EAF3DE','Replied':'#E6F1FB','Gone quiet':'#FAEEDA','Closed won':'#E1F5EE','Closed lost':'#FCEBEB'};
+  const SC3={'Active':'#27500A','Replied':'#0C447C','Gone quiet':'#633806','Closed won':'#085041','Closed lost':'#791F1F'};
+
+  el.innerHTML=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+    ${[['Total prospects',PP.length],['Emails sent',sent],['Reply rate',replyRate+'%'],['Avg reply',avgReply?'Email '+avgReply:'—']].map(([l,v])=>`<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:28px;font-weight:700;color:#1a1a2e;">${v}</div><div style="font-size:11px;color:#9ca3af;margin-top:3px;">${l}</div></div>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div class="card" style="margin-bottom:0;"><span class="section-label">Reply rate by email number</span>
+      ${numRows.length?numRows.map(r=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="font-size:12px;color:#374151;width:55px;text-align:right;flex-shrink:0;">Email ${r.num}</span><div style="flex:1;background:#f3f4f6;border-radius:4px;height:8px;overflow:hidden;"><div style="height:100%;border-radius:4px;background:#7F77DD;width:${r.rate}%;"></div></div><span style="font-size:11px;color:#6b7280;width:32px;flex-shrink:0;">${r.rate}%</span></div>`).join(''):'<div style="font-size:12px;color:#9ca3af;">Send and log replies to see data here.</div>'}
+    </div>
+    <div class="card" style="margin-bottom:0;"><span class="section-label">Pipeline status</span>
+      ${['Active','Replied','Gone quiet','Closed won','Closed lost'].map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f3f4f6;"><span style="font-size:13px;color:#374151;">${s}</span><span style="font-size:13px;font-weight:600;padding:2px 10px;border-radius:20px;background:${SC2[s]||'#F8F7F4'};color:${SC3[s]||'#6b7280'};">${PP.filter(p=>p.status===s).length}</span></div>`).join('')}
+    </div>
+  </div>
+  <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <div><span class="section-label" style="margin-bottom:0;">&#128161; Subject line intelligence</span><div style="font-size:12px;color:#6b7280;margin-top:2px;">AI analysis of what subject line patterns work best for your pipeline.</div></div>
+    <button id="subj-intel-btn" class="btn btn-primary" onclick="getSubjectIntelligence()" style="white-space:nowrap;flex-shrink:0;">&#128161; Generate insights</button>
+  </div><div id="subj-intel-results" style="display:none;"></div></div>`;
+}
+
+async function getSubjectIntelligence(){
+  const kb=allKB();
+  if(kb.length<5){alert('Need at least 5 calls in the KB first.');return;}
+  const btn=document.getElementById('subj-intel-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin spin-d"></span> Analysing...';}
+  try{
+    const prompt=`Analyse these call patterns. Identify subject line approaches that work best for each prospect type.\n\nDATA:\n${kb.slice(-30).map(e=>`Company: ${e.company} | Pain: ${e.pain} | Stage: ${e.stage} | Urgency: ${e.urgency}${e.repliedEmail?' | Replied Email '+e.repliedEmail:''}`).join('\n')}\n\nReturn JSON: {"insights":[{"pattern":"what works","example":"example subject line","why":"reason"}]} — 4-5 insights.`;
+    const response=await callClaude([{role:'user',content:prompt}],SYSTEM);
+    const data=JSON.parse(response.replace(/```json|```/g,'').trim());
+    const el=document.getElementById('subj-intel-results');
+    el.innerHTML=data.insights.map(i=>`<div style="background:#F8F7F4;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:8px;"><div style="font-size:13px;font-weight:600;color:#1a1a2e;margin-bottom:4px;">${i.pattern}</div><div style="font-size:12px;color:#7F77DD;font-style:italic;margin-bottom:4px;">"${i.example}"</div><div style="font-size:12px;color:#6b7280;">${i.why}</div></div>`).join('');
+    el.style.display='block';
+  }catch(e){alert('Error: '+e.message);}
+  if(btn){btn.disabled=false;btn.innerHTML='&#128161; Generate subject intelligence';}
+}
+
+async function handleObjection(prospectId){
+  const p=PP.find(x=>x.id===prospectId);if(!p)return;
+  const obj=document.getElementById('obj-inp')?.value.trim();if(!obj)return;
+  const btn=document.getElementById('obj-btn');
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin spin-d"></span> Generating...';}
+  try{
+    const prompt=`Handle this objection for this specific deal. 2-3 sentences: acknowledge, reframe using their context, soft question.\n\nProspect: ${p.contactName} at ${p.company}\nPain: ${p.keyPain}\nStage: ${p.stage}\nObjection: "${obj}"\n\nReturn JSON: {"response":""}`;
+    const response=await callClaude([{role:'user',content:prompt}],SYSTEM);
+    const data=JSON.parse(response.replace(/```json|```/g,'').trim());
+    document.getElementById('obj-response').textContent=data.response||'';
+    document.getElementById('obj-response-wrap').style.display='block';
+  }catch(e){alert('Error: '+e.message);}
+  if(btn){btn.disabled=false;btn.innerHTML='Generate response';}
+}
+
+function saveContact(prospectId){
+  const p=PP.find(x=>x.id===prospectId);if(!p)return;
+  const name=document.getElementById('contact-name-inp')?.value.trim();
+  const role=document.getElementById('contact-role-inp')?.value.trim();
+  const email=document.getElementById('contact-email-inp')?.value.trim();
+  if(!name)return;
+  if(!p.contacts)p.contacts=[];
+  p.contacts.push({id:Date.now().toString(),name,role,email});
+  savePP();renderProspectDetail();
+}
+
+function removeContact(prospectId,contactId){
+  const p=PP.find(x=>x.id===prospectId);if(!p)return;
+  p.contacts=(p.contacts||[]).filter(c=>c.id!==contactId);savePP();renderProspectDetail();
+}
+
+function saveNextSteps(prospectId){
+  const p=PP.find(x=>x.id===prospectId);if(!p)return;
+  p.nextSteps=document.getElementById('next-steps-inp')?.value||'';savePP();showDealRoom=false;renderProspectDetail();
+}
+
+function deleteProspect(id){
+  const p=PP.find(x=>x.id===id);if(!p)return;
+  deletedProspect={...p,emails:[...(p.emails||[])]};
+  PP=PP.filter(x=>x.id!==id);cId=null;savePP();updateBadges();renderSidebar();
+  showPage('prospects');renderProspectsGrid();showToast('Prospect deleted',true);
+}
+
+function showToast(msg,withUndo=false){
+  const existing=document.getElementById('toast-el');if(existing)existing.remove();
+  const t=document.createElement('div');t.className='toast';t.id='toast-el';
+  t.innerHTML=msg+(withUndo?` <span class="toast-undo" onclick="undoDelete()">Undo</span>`:'');
+  document.body.appendChild(t);
+  if(deleteTimer)clearTimeout(deleteTimer);
+  deleteTimer=setTimeout(()=>{const el=document.getElementById('toast-el');if(el)el.remove();deletedProspect=null;},5000);
+}
+
+function undoDelete(){
+  if(!deletedProspect)return;
+  PP.unshift(deletedProspect);savePP();deletedProspect=null;
+  const t=document.getElementById('toast-el');if(t)t.remove();
+  updateBadges();renderSidebar();renderProspectsGrid();
+}
+
+function setCtxChip(btn,text){
+  const wasOn=btn.classList.contains('on');
+  document.querySelectorAll('.ctx-chip').forEach(c=>c.classList.remove('on'));
+  if(!wasOn){btn.classList.add('on');document.getElementById('email1-ctx').value=text;}
+  else document.getElementById('email1-ctx').value='';
+}
+
+function setNextChip(btn,text){
+  const wasOn=btn.classList.contains('on');
+  document.querySelectorAll('.next-chip').forEach(c=>c.classList.remove('on'));
+  if(!wasOn){btn.classList.add('on');whatHappened=text;if(document.getElementById('what-happened-inp'))document.getElementById('what-happened-inp').value=text;}
+  else{whatHappened='';if(document.getElementById('what-happened-inp'))document.getElementById('what-happened-inp').value='';}
+}
+
+function togPanel(x){
+  showCtx=x==='ctx'?!showCtx:false;
+  showDisc=x==='disc'?!showDisc:false;
+  showTone=x==='tone'?!showTone:false;
+  showObjHandler=x==='obj'?!showObjHandler:false;
+  showDealRoom=x==='room'?!showDealRoom:false;
+  renderProspectDetail();
+}
+
+function updTone(t){const p=PP.find(x=>x.id===cId);if(!p)return;p.tone=t;savePP();renderProspectDetail();}
+
+function toggleSection(id){
+  const content=document.getElementById(id+'-content');
+  const toggle=document.getElementById(id+'-toggle');
+  if(!content||!toggle)return;
+  const isOpen=content.style.display!=='none';
+  content.style.display=isOpen?'none':'block';
+  toggle.innerHTML=isOpen?'Show &#9660;':'Hide &#9650;';
+}
+
+async function generateStyleOptions(){
+  const notes=document.getElementById('style-notes').value.trim();
+  if(!notes){alert('Paste a call note first.');return;}
+  const btn=document.getElementById('style-gen-btn');btn.disabled=true;btn.innerHTML='<span class="spin spin-d"></span> Generating...';
+  styleTries=0;await fetchStyleOptions(notes);
+  btn.disabled=false;btn.innerHTML='Generate 2 options';
+}
+
+async function generateMoreStyleOptions(){
+  styleTries++;
+  if(styleTries>=2){document.getElementById('style-custom').style.display='block';document.getElementById('style-more-btn').style.display='none';return;}
+  await fetchStyleOptions(document.getElementById('style-notes').value.trim(),true);
+}
+
+async function fetchStyleOptions(notes,isMore=false){
+  const style=loadStyle();
+  const exCtx=style.examples.length?`\n\nEXISTING STYLE:\n${style.examples.slice(-3).map((e,i)=>`E${i+1} Subject: ${e.subject}\nBody: ${e.body}`).join('\n\n')}`:'';
+  try{
+    const prompt=`Generate 2 distinctly different email options for Email 1.${isMore?' Try very different angles.':''}\n${exCtx}\n\nCALL NOTES:\n${notes}\n\nReturn JSON: {"option1":{"subject":"","body":""},"option2":{"subject":"","body":""}}`;
+    const response=await callClaude([{role:'user',content:prompt}],SYSTEM);
+    const data=JSON.parse(response.replace(/```json|```/g,'').trim());
+    styleOptions=[data.option1,data.option2];
+    document.getElementById('style-subj-1').textContent=data.option1.subject;document.getElementById('style-body-1').textContent=data.option1.body;
+    document.getElementById('style-subj-2').textContent=data.option2.subject;document.getElementById('style-body-2').textContent=data.option2.body;
+    document.getElementById('style-opt-1').classList.remove('selected');document.getElementById('style-opt-2').classList.remove('selected');
+    document.getElementById('style-options').style.display='block';document.getElementById('style-more-btn').style.display='inline-flex';document.getElementById('style-custom').style.display='none';
+  }catch(e){alert('Error: '+e.message);}
+}
+
+async function generateCustomStyle(){
+  const notes=document.getElementById('style-notes').value.trim();
+  const customPrompt=document.getElementById('style-custom-prompt').value.trim();if(!customPrompt)return;
+  try{
+    const prompt=`Generate email options following this direction: "${customPrompt}"\n\nCALL NOTES:\n${notes}\n\nReturn JSON: {"option1":{"subject":"","body":""},"option2":{"subject":"","body":""}}`;
+    const response=await callClaude([{role:'user',content:prompt}],SYSTEM);
+    const data=JSON.parse(response.replace(/```json|```/g,'').trim());
+    styleOptions=[data.option1,data.option2];
+    document.getElementById('style-subj-1').textContent=data.option1.subject;document.getElementById('style-body-1').textContent=data.option1.body;
+    document.getElementById('style-subj-2').textContent=data.option2.subject;document.getElementById('style-body-2').textContent=data.option2.body;
+    document.getElementById('style-opt-1').classList.remove('selected');document.getElementById('style-opt-2').classList.remove('selected');
+    document.getElementById('style-custom').style.display='none';document.getElementById('style-options').style.display='block';
+  }catch(e){alert('Error: '+e.message);}
+}
+
+function selectStyle(idx){
+  const selected=styleOptions[idx];if(!selected)return;
+  document.getElementById('style-opt-1').classList.toggle('selected',idx===0);
+  document.getElementById('style-opt-2').classList.toggle('selected',idx===1);
+  const style=loadStyle();style.examples.push(selected);if(style.examples.length>10)style.examples=style.examples.slice(-10);saveStyle(style);
+  setTimeout(()=>{document.getElementById('style-options').style.display='none';document.getElementById('style-notes').value='';renderStyleExamples();showToast('&#10003; Style example saved!');},600);
+}
+
+function renderStyleExamples(){
+  const style=loadStyle();const el=document.getElementById('style-saved-examples');if(!el)return;
+  if(!style.examples.length){el.innerHTML='';return;}
+  el.innerHTML=`<span class="section-label">${style.examples.length} style example${style.examples.length===1?'':'s'} saved</span>`
+    +style.examples.map((e,i)=>`<div class="style-saved"><div class="style-saved-num">Example ${i+1}</div><div style="font-weight:600;margin-bottom:3px;">${e.subject}</div><div>${e.body.substring(0,100)}...</div></div>`).join('')
+    +`<button class="btn btn-red" style="font-size:11px;margin-top:8px;" onclick="if(confirm('Clear?')){saveStyle({examples:[],notes:''});renderStyleExamples();}">Clear style examples</button>`;
 }
 
 init();
