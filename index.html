@@ -520,6 +520,19 @@ hr{border:none;border-top:1px solid #f3f4f6;margin:16px 0;}
       </div>
 
       <div class="card" style="max-width:500px;">
+        <span class="section-label">&#128190; Export / Import data</span>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:12px;line-height:1.6;">Export your data as a file and import it on any device or URL. Use this when switching between Netlify and GitHub Pages.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <button class="btn btn-primary" onclick="exportData()">&#11014; Export my data</button>
+          <button class="btn" onclick="document.getElementById('import-file').click()">&#11015; Import data</button>
+          <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importData(this)" />
+        </div>
+        <div id="export-msg" style="display:none;" class="info info-green"></div>
+        <div id="import-msg" style="display:none;" class="info info-green"></div>
+        <div id="import-err" style="display:none;" class="info info-red"></div>
+      </div>
+
+      <div class="card" style="max-width:500px;">
         <span class="section-label">Data</span>
         <p style="font-size:13px;color:#6b7280;margin-bottom:12px;">Reset your prospect data. Knowledge base is shared and cannot be reset individually.</p>
         <button class="btn btn-red" onclick="resetMyData()">Reset my prospects</button>
@@ -1544,6 +1557,61 @@ function setNextChip(btn,text){
     whatHappened='';
     document.getElementById('what-happened-inp').value='';
   }
+}
+
+function exportData(){
+  const data={
+    version:'v3',
+    exportedAt:new Date().toISOString(),
+    user:currentUser,
+    prospects:PP,
+    kb_brian:KB_ALL.Brian||[],
+    kb_aditya:KB_ALL.Aditya||[],
+    kb_abhay:KB_ALL.Abhay||[],
+    style:loadStyle()
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`followup-crm-${currentUser.toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  const msg=document.getElementById('export-msg');
+  if(msg){msg.textContent='✓ Data exported successfully. Save this file somewhere safe.';msg.style.display='block';setTimeout(()=>msg.style.display='none',4000);}
+}
+
+function importData(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.version||!data.prospects){throw new Error('Invalid file format');}
+      // Import prospects
+      const seen=new Set(PP.map(x=>x.id));
+      data.prospects.forEach(p=>{if(!seen.has(p.id)){PP.unshift(p);seen.add(p.id);}});
+      // Import KB
+      if(data.kb_brian)data.kb_brian.forEach(e=>{const k=e.date+'|'+e.company;if(!KB_ALL.Brian.find(x=>x.date+'|'+x.company===k))KB_ALL.Brian.push(e);});
+      if(data.kb_aditya)data.kb_aditya.forEach(e=>{const k=e.date+'|'+e.company;if(!KB_ALL.Aditya.find(x=>x.date+'|'+x.company===k))KB_ALL.Aditya.push(e);});
+      if(data.kb_abhay)data.kb_abhay.forEach(e=>{const k=e.date+'|'+e.company;if(!KB_ALL.Abhay.find(x=>x.date+'|'+x.company===k))KB_ALL.Abhay.push(e);});
+      // Import style
+      if(data.style)saveStyle(data.style);
+      savePP();
+      USERS.forEach(u=>{localStorage.setItem(kbKey(u),JSON.stringify(KB_ALL[u]));});
+      updateBadges();renderSidebar();renderProspectsGrid();
+      const msg=document.getElementById('import-msg');
+      const err=document.getElementById('import-err');
+      if(msg){msg.textContent='✓ Data imported successfully. Your prospects and KB are restored.';msg.style.display='block';setTimeout(()=>msg.style.display='none',4000);}
+      if(err)err.style.display='none';
+    }catch(e){
+      const err=document.getElementById('import-err');
+      if(err){err.textContent='Could not import — make sure you selected the right file.';err.style.display='block';}
+    }
+  };
+  reader.readAsText(file);
+  input.value='';
 }
 
 function resetMyData(){
